@@ -2,3 +2,10 @@
 *.a
 *.o
 *.po
+*.swp
+*.so
+*.so.*
+*.pico
+uclua
+uclua.debug
+uclua.full
