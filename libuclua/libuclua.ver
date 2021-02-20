@@ -3,6 +3,7 @@ global:
 	uclua_new;
 	uclua_parse_file;
 	uclua_ucl;
+	uclua_dump;
 	uclua_reset;
 	uclua_free;
 local:

@@ -27,6 +27,8 @@
 
 #include <sys/param.h>
 
+#include <errno.h>
+
 #include "luclua_internal.h"
 
 typedef ucl_object_t *(uclua_process_type_func)(lua_State *, int);
@@ -65,6 +67,54 @@ uclua_ucl(lcookie_t *lcook)
 
 	/* XXX Error */
 	return (NULL);
+}
+
+int
+uclua_dump(lcookie_t *lcook, enum uclua_dump_type dfmt, FILE *f)
+{
+	char *emission;
+	ucl_object_t *ucl;
+	size_t nb, sb;
+	enum ucl_emitter emitter;
+	int serrno;
+
+	ucl = uclua_ucl(lcook);
+	if (ucl == NULL)
+		return (EINVAL);
+
+	switch (dfmt) {
+	case UCLUAD_JSON:
+		emitter = UCL_EMIT_JSON;
+		break;
+	case UCLUAD_UCL:
+		emitter = UCL_EMIT_CONFIG;
+		break;
+	case UCLUAD_YAML:
+		emitter = UCL_EMIT_YAML;
+		break;
+	}
+
+	emission = (char *)ucl_object_emit(ucl, emitter);
+	if (emission == NULL) {
+		/* XXX ERROR */
+		return (EINVAL);
+	}
+
+	sb = strlen(emission);
+	nb = fwrite(emission, 1, sb, f);
+	serrno = errno;
+	free(emission);
+	if (nb < sb) {
+		/* ?? */
+		if (ferror(f) != 0) {
+			/* XXX */
+			return (serrno);
+		} else {
+			return (ENOSPC);
+		}
+	}
+
+	return (0);
 }
 
 void
