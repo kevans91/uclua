@@ -77,6 +77,33 @@ uclua_ucl_free(lcookie_t *lcook)
 	lcook->ucl = NULL;
 }
 
+static bool
+uclua_is_array(lua_State *L, int idx)
+{
+	int ltype, cidx, nidx;
+
+	lua_pushnil(L);
+	nidx = 1;
+	while (lua_next(L, idx) != 0) {
+		ltype = lua_type(L, -2);
+		if (ltype != LUA_TNUMBER || !lua_isinteger(L, -2)) {
+			lua_pop(L, 2);
+			return (false);
+		}
+
+		cidx = lua_tointeger(L, -2);
+		if (cidx != nidx) {
+			lua_pop(L, 2);
+			return (false);
+		}
+
+		nidx++;
+		lua_pop(L, 1);
+	}
+
+	return (true);
+}
+
 static ucl_object_t *
 uclua_process_table(lua_State *L, int idx)
 {
@@ -84,8 +111,10 @@ uclua_process_table(lua_State *L, int idx)
 	uclua_process_type_func *processor;
 	ucl_object_t *obj, *val;
 	int ltype;
+	bool array;
 
-	obj = ucl_object_typed_new(UCL_OBJECT);
+	array = uclua_is_array(L, idx);
+	obj = ucl_object_typed_new(array ? UCL_ARRAY : UCL_OBJECT);
 	if (obj == NULL) {
 		/* XXX Error */
 		return (false);
@@ -112,7 +141,12 @@ uclua_process_table(lua_State *L, int idx)
 				goto next;
 			}
 
-			if (!ucl_object_insert_key(obj, val, key, 0, true)) {
+			if (array) {
+				if (!ucl_array_append(obj, val)) {
+					/* XXX Error */
+					goto next;
+				}
+			} else if (!ucl_object_insert_key(obj, val, key, 0, true)) {
 				/* XXX Error */
 				goto next;
 			}
