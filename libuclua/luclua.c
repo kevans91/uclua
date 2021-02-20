@@ -40,20 +40,25 @@
 
 #define	LCOOKIE_IDX		"uclua_cookie"
 
-static const luaL_Reg dflibs[] = {
-	/* {LUA_LOADLIBNAME, luaopen_package}, */
-	{LUA_COLIBNAME, luaopen_coroutine},
-	{LUA_TABLIBNAME, luaopen_table},
-	/* {LUA_IOLIBNAME, luaopen_io}, */
-	/* {LUA_OSLIBNAME, luaopen_os}, */
-	{LUA_STRLIBNAME, luaopen_string},
-	{LUA_MATHLIBNAME, luaopen_math},
-	{LUA_UTF8LIBNAME, luaopen_utf8},
-	/* {LUA_DBLIBNAME, luaopen_debug}, */
+typedef void lualib_modify_fn(lcookie_t *);
+
+static const struct uclua_lualib {
+	const luaL_Reg			 lib;
+	lualib_modify_fn		*modifier;
+} dflibs[] = {
+	/* { .lib = {LUA_LOADLIBNAME, luaopen_package} }, */
+	{ .lib = {LUA_COLIBNAME, luaopen_coroutine} },
+	{ .lib = {LUA_TABLIBNAME, luaopen_table} },
+	/* { .lib = {LUA_IOLIBNAME, luaopen_io} }, */
+	/* { .lib = {LUA_OSLIBNAME, luaopen_os} }, */
+	{ .lib = {LUA_STRLIBNAME, luaopen_string} },
+	{ .lib = {LUA_MATHLIBNAME, luaopen_math} },
+	{ .lib = {LUA_UTF8LIBNAME, luaopen_utf8} },
+	/* {LUA_DBLIBNAME, luaopen_debug} }, */
 #if defined(LUA_COMPAT_BITLIB)
-	{LUA_BITLIBNAME, luaopen_bit32},
+	{ .lib = {LUA_BITLIBNAME, luaopen_bit32} },
 #endif
-/*	{"ucl", luaopen_ucl}, */
+/*	{ .lib = {"ucl", luaopen_ucl} }, */
 };
 
 struct uclua_floader {
@@ -167,6 +172,7 @@ uclua_reset(lcookie_t *lcook)
 static void
 uclua_init_state(lcookie_t *lcook)
 {
+	const struct uclua_lualib	*libinfo;
 	const luaL_Reg *lib;
 	lua_State *L;
 
@@ -180,8 +186,11 @@ uclua_init_state(lcookie_t *lcook)
 	lua_pop(L, 1);
 
 	for (size_t i = 0; i < nitems(dflibs); ++i) {
-		lib = &dflibs[i];
+		libinfo = &dflibs[i];
+		lib = &libinfo->lib;
 		luaL_requiref(L, lib->name, lib->func, 1);
+		if (libinfo->modifier != NULL)
+			(*libinfo->modifier)(lcook);
 		lua_pop(L, 1);
 	}
 
