@@ -41,20 +41,22 @@ enum {
 	YAML_OPT,
 };
 
-const char *optstr = "o:";
+const char *optstr = "o:s:";
 
 struct option longopts[] = {
 	{ "json",	no_argument,	NULL,	JSON_OPT },
 	{ "ucl",	no_argument,	NULL,	UCL_OPT },
 	{ "yaml",	no_argument,	NULL,	YAML_OPT },
 	{ "output",	required_argument,	NULL,	'o' },
+	{ "sandbox",	required_argument,	NULL,	's' },
 };
 
 static int
 usage(void)
 {
 
-	fprintf(stderr, "Usage: %s [--json | --ucl | --yaml] [-o output] [file...] \n", getprogname());
+	fprintf(stderr, "Usage: %s [--json | --ucl | --yaml] "
+	    "[-o output] [-s sandbox] [file ...]\n", getprogname());
 	return (1);
 }
 
@@ -89,13 +91,15 @@ main(int argc, char *argv[])
 {
 	lcookie_t *lcook;
 	FILE *cfg, *outf;
-	const char *outfile;
+	const char *outfile, *sandbox;
 	char *cwd;
 	int ch, ret;
 	enum uclua_dump_type udump;
 
+	ret = 0;
 	udump = UCLUAD_UCL;
-	outfile = NULL;
+	cwd = NULL;
+	sandbox = outfile = NULL;
 	while ((ch = getopt_long(argc, argv, optstr, longopts, NULL)) != -1) {
 		switch (ch) {
 		case JSON_OPT:
@@ -109,6 +113,9 @@ main(int argc, char *argv[])
 			break;
 		case 'o':
 			outfile = optarg;
+			break;
+		case 's':
+			sandbox = optarg;
 			break;
 		default:
 			usage();
@@ -140,10 +147,16 @@ main(int argc, char *argv[])
 		goto out;
 	}
 
-	cwd = getcwd(NULL, 0);
-	if (cwd != NULL) {
-		uclua_set_sandbox(lcook, cwd);
+	if (sandbox == NULL)
+		sandbox = cwd = getcwd(NULL, 0);
+	if (sandbox != NULL) {
+		if (!uclua_set_sandbox(lcook, sandbox)) {
+			ret = 1;
+			goto out;
+		}
+
 		free(cwd);
+		cwd = NULL;
 	}
 
 	if (argc == 0) {
@@ -161,6 +174,7 @@ main(int argc, char *argv[])
 		ret = 1;
 	}
 out:
+	free(cwd);
 	if (outf != stdout)
 		fclose(outf);
 	if (lcook != NULL)
