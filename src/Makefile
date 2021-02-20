@@ -1,6 +1,6 @@
 PROG=	uclua
 MAN=	# None yet
 
-LDADD=	-luclua
+LDADD=	-L${.CURDIR}/../libuclua -luclua
 
 .include <bsd.prog.mk>

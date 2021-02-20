@@ -25,9 +25,119 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/param.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <getopt.h>
+
+#include <uclua.h>
+
+enum {
+	JSON_OPT = CHAR_MAX + 1,
+	UCL_OPT,
+	YAML_OPT,
+};
+
+const char *optstr = "";
+
+struct option longopts[] = {
+	{ "json",	no_argument,	NULL,	JSON_OPT },
+	{ "ucl",	no_argument,	NULL,	UCL_OPT },
+	{ "yaml",	no_argument,	NULL,	YAML_OPT },
+};
+
+static int
+usage(void)
+{
+
+	fprintf(stderr, "Usage: %s [--json | --ucl | --yaml] [file...] \n", getprogname());
+	return (1);
+}
+
+static int
+parse_one(lcookie_t *lcook, const char *name)
+{
+	FILE *cfg;
+	int ret;
+
+	if (strcmp(name, "-") == 0)
+		cfg = stdin;
+	else
+		cfg = fopen(name, "r");
+	if (cfg == NULL) {
+		printf("Failed to open file '%s'\n", name);
+		return (1);
+	}
+
+	ret = 0;
+	if (!uclua_parse_file(lcook, cfg)) {
+		ret = 1;
+		fprintf(stderr, "Failed to parse from %s\n", cfg == stdin ? "stdin" : name);
+	}
+
+	if (cfg != stdin)
+		fclose(cfg);
+	return (ret);
+}
 
 int
 main(int argc, char *argv[])
 {
+	lcookie_t *lcook;
+	FILE *cfg, *outf;
+	int ch, ret;
+	enum uclua_dump_type udump;
 
+	udump = UCLUAD_UCL;
+	outf = stdout;
+
+	while ((ch = getopt_long(argc, argv, "", longopts, NULL)) != -1) {
+		switch (ch) {
+		case JSON_OPT:
+			udump = UCLUAD_JSON;
+			break;
+		case UCL_OPT:
+			udump = UCLUAD_UCL;
+			break;
+		case YAML_OPT:
+			udump = UCLUAD_YAML;
+			break;
+		default:
+			usage();
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0 && isatty(STDIN_FILENO)) {
+		fprintf(stderr, "interactive conversion not supported\n");
+		return (usage());
+	}
+
+	lcook = uclua_new();
+	if (lcook == NULL) {
+		fprintf(stderr, "out of memory\n");
+		return (1);
+	}
+
+	if (argc == 0) {
+		ret = parse_one(lcook, "-");
+	} else {
+		ret = 0;
+		for (int i = 0; i < argc; i++) {
+			if ((ret = parse_one(lcook, argv[i])) != 0)
+				break;
+		}
+	}
+
+	if (ret == 0 && uclua_dump(lcook, udump, outf) != 0) {
+		fprintf(stderr, "Failed to dump!\n");
+		return (1);
+	}
+	uclua_free(lcook);
+	return (0);
 }
