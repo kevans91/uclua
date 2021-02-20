@@ -10,3 +10,4 @@ uclua
 uclua.debug
 uclua.full
 *.core
+*.gz

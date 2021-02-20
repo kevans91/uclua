@@ -1,5 +1,4 @@
 PROG=	uclua
-MAN=	# None yet
 
 LDADD=	-L${.CURDIR}/../libuclua -luclua
 
