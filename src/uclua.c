@@ -90,6 +90,7 @@ main(int argc, char *argv[])
 	lcookie_t *lcook;
 	FILE *cfg, *outf;
 	const char *outfile;
+	char *cwd;
 	int ch, ret;
 	enum uclua_dump_type udump;
 
@@ -132,12 +133,17 @@ main(int argc, char *argv[])
 		}
 	}
 
-
 	lcook = uclua_new();
 	if (lcook == NULL) {
 		fprintf(stderr, "out of memory\n");
 		ret = 1;
 		goto out;
+	}
+
+	cwd = getcwd(NULL, 0);
+	if (cwd != NULL) {
+		uclua_set_sandbox(lcook, cwd);
+		free(cwd);
 	}
 
 	if (argc == 0) {
