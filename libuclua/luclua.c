@@ -27,6 +27,8 @@
 
 #include <sys/param.h>
 
+#include <assert.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -101,8 +103,8 @@ out:
 	return (lcook);
 }
 
-bool
-uclua_parse_file(lcookie_t *lcook, FILE *f)
+static int
+uclua_load_file(lcookie_t *lcook, FILE *f, const char *name)
 {
 	struct uclua_floader fload;
 	lua_State *L;
@@ -112,17 +114,39 @@ uclua_parse_file(lcookie_t *lcook, FILE *f)
 	fload.fload_file = f;
 	fload.fload_eof = fload.fload_error = false;
 
-	lerr = lua_load(L, uclua_read_file, &fload, "cfgfile" /* XXX */, NULL);
+	lerr = lua_load(L, uclua_read_file, &fload, name, NULL);
 	if (lerr != LUA_OK) {
-		printf("lua error\n");
-		return (false);
+		lua_pushnil(L);
+		lua_pushvalue(L, -2);
+		return (2);
 	} else if (fload.fload_error) {
-		printf("i/o error\n");
-		return (false);
+		lua_pushnil(L);
+		lua_pushstring(L, "i/o error");
+		return (2);
 	}
 
 	lua_getfield(L, LUA_REGISTRYINDEX, LENV_IDX);
 	lua_setupvalue(L, -2, 1);
+
+	return (1);
+}
+
+bool
+uclua_parse_file(lcookie_t *lcook, FILE *f)
+{
+	lua_State *L;
+	int lerr;
+
+	L = lcook->L;
+
+	lua_settop(L, 0);
+	lerr = uclua_load_file(lcook, f, "cfgfile");
+	assert(lerr > 0);
+	if (lua_isnil(L, 1)) {
+		assert(lerr > 1);
+		fprintf(stderr, "%s\n", luaL_tolstring(L, -1, NULL));
+		return (false);
+	}
 
 	lerr = lua_pcall(L, 0, 0, 0);
 	if (lerr != LUA_OK) {
