@@ -43,6 +43,7 @@
 struct uclua_cookie {
 	lua_State *L;
 	ucl_object_t *ucl;
+	int dirfd;	/* sandboxed require */
 	bool dirty;
 };
 

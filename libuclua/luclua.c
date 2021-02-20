@@ -29,8 +29,10 @@
 
 #include <assert.h>
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <luaconf.h>
 #include <lua.h>
@@ -45,13 +47,14 @@
 typedef void lualib_modify_fn(lcookie_t *);
 
 static lualib_modify_fn	uclua_modify_base;
+static lualib_modify_fn	uclua_modify_load;
 
 static const struct uclua_lualib {
 	const luaL_Reg			 lib;
 	lualib_modify_fn		*modifier;
 } dflibs[] = {
 	{ .lib = {"_G", luaopen_base}, .modifier = uclua_modify_base },
-	/* { .lib = {LUA_LOADLIBNAME, luaopen_package} }, */
+	{ .lib = {LUA_LOADLIBNAME, luaopen_package}, .modifier = uclua_modify_load },
 	{ .lib = {LUA_COLIBNAME, luaopen_coroutine} },
 	{ .lib = {LUA_TABLIBNAME, luaopen_table} },
 	/* { .lib = {LUA_IOLIBNAME, luaopen_io} }, */
@@ -92,6 +95,7 @@ uclua_new(void)
 		goto out;
 
 	lcook->L = L;
+	lcook->dirfd = -1;
 	uclua_init_state(lcook);
 
 	*(lcookie_t **)lua_newuserdata(L, sizeof(lcook)) = lcook;
@@ -212,6 +216,106 @@ uclua_modify_base(lcookie_t *lcook)
 
 	lua_pushnil(L);
 	lua_setfield(L, -2, "loadfile");
+}
+
+static int
+uclua_searcher_preload(lua_State *L)
+{
+	const char *name;
+
+	name = luaL_checkstring(L, 1);
+	lua_getfield(L, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
+	if (lua_getfield(L, -1, name) == LUA_TNIL) {
+		lua_pushfstring(L, " not preloaded\n");
+		return (1);
+	}
+
+	/* Return it. */
+	return (1);
+}
+
+static int
+uclua_searcher_dirfd(lua_State *L)
+{
+	const char *name;
+	char *lname;
+	lcookie_t *lcook;
+	FILE *f;
+	int fd, lerr;
+
+	name = luaL_checkstring(L, 1);
+	assert(lua_islightuserdata(L, lua_upvalueindex(2)));
+
+	lcook = lua_touserdata(L, lua_upvalueindex(2));
+	if (lcook->dirfd == -1) {
+		lua_pushfstring(L, "\tno sandbox, attempted to load '%s'", name);
+		return (1);
+	}
+
+	fd = openat(lcook->dirfd, name, O_RDONLY | O_BENEATH);
+	if (fd == -1) {
+		lname = NULL;
+		if (asprintf(&lname, "%s.lua", name) == -1) {
+			lua_pushfstring(L, "\tout of memory trying to load '%s'", name);
+			return (1);
+		}
+
+		fd = openat(lcook->dirfd, lname, O_RDONLY | O_BENEATH);
+		free(lname);
+	}
+
+	if (fd == -1) {
+		lua_pushfstring(L, "\tnot found in sandbox: '%s'", name);
+		return (1);
+	}
+
+	f = fdopen(fd, "r");
+	if (f == NULL) {
+		close(fd);
+		lua_pushfstring(L, "\tfailed to open '%s' for reading", name);
+		return (1);
+	}
+
+	lerr = uclua_load_file(lcook, f, name);
+	fclose(f);
+	assert(lerr > 0);
+	if (lua_isnil(L, -lerr)) {
+		/* Failed to load. */
+		assert(lerr > 1);
+		return (1);
+	}
+
+	/* Nothing extra to pass. */
+	lua_insert(L, -lerr);
+	return (1);
+}
+
+/*
+ * Use a custom searcher only.  We're removing their ability to pull in
+ * C modules by default, and limiting visibility to descendants of the current
+ * directory.
+ */
+static void
+uclua_modify_load(lcookie_t *lcook)
+{
+	lua_State *L;
+
+	L = lcook->L;
+	lua_newtable(L);
+
+	/* Preloads are OK. */
+	lua_pushvalue(L, -2);
+	lua_pushcclosure(L, uclua_searcher_preload, 1);
+	lua_rawseti(L, -2, 1);
+
+	if (lcook->dirfd != -1) {
+		lua_pushvalue(L, -2);
+		lua_pushlightuserdata(L, lcook);
+		lua_pushcclosure(L, uclua_searcher_dirfd, 2);
+		lua_rawseti(L, -2, 2);
+	}
+
+	lua_setfield(L, -2, "searchers");
 }
 
 static void
