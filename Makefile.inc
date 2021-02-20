@@ -1,2 +1,3 @@
 
-CFLAGS+=	-I${.CURDIR}/../include
+LOCALBASE?=	/usr/local
+CFLAGS+=	-I${.CURDIR}/../include -I${LOCALBASE}/include

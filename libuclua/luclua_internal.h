@@ -28,8 +28,24 @@
 #ifndef _LUCLUA_INTERNAL_H
 #define	_LUCLUA_INTERNAL_H
 
+#include <stdbool.h>
+
+#include <luaconf.h>
+#include <lua.h>
+#include <lauxlib.h>
+
+#include <ucl.h>
+
+#include <uclua.h>
+
+#define	LENV_IDX		"uclua_env"
+
 struct uclua_cookie {
 	lua_State *L;
+	ucl_object_t *ucl;
+	bool dirty;
 };
+
+void uclua_ucl_free(lcookie_t *);
 
 #endif	/* _LUCLUA_INTERNAL_H */

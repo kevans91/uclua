@@ -31,12 +31,16 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include <ucl.h>
+
 struct uclua_cookie;
 
 typedef struct uclua_cookie lcookie_t;
 
 lcookie_t *uclua_new(void);
 bool uclua_parse_file(lcookie_t *, FILE *);
+ucl_object_t *uclua_ucl(lcookie_t *);
+void uclua_reset(lcookie_t *);
 void uclua_free(lcookie_t *);
 
 #endif	/* _INCL_UCLUA_H */
