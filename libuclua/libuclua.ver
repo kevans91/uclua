@@ -1,0 +1,10 @@
+LIBUCLUA_1.0 {
+global:
+	uclua_new;
+	uclua_parse_file;
+	uclua_ucl;
+	uclua_reset;
+	uclua_free;
+local:
+	*;
+};

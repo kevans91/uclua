@@ -1,6 +1,7 @@
 
 LIB=	uclua
 SHLIB_MAJOR=	0
+VERSION_MAP=	${.CURDIR}/lib${LIB}.ver
 
 SRCS=	luclua.c luclua_ucl.c
 
