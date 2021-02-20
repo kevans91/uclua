@@ -1,6 +1,7 @@
 LIBUCLUA_1.0 {
 global:
 	uclua_new;
+	uclua_set_sandbox;
 	uclua_parse_file;
 	uclua_ucl;
 	uclua_dump;

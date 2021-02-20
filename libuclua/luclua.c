@@ -107,6 +107,20 @@ out:
 	return (lcook);
 }
 
+bool
+uclua_set_sandbox(lcookie_t *lcook, const char *dirname)
+{
+	int fd;
+
+	fd = open(dirname, O_DIRECTORY | O_SEARCH);
+	if (fd == -1)
+		return (false);
+	if (lcook->dirfd != -1)
+		close(lcook->dirfd);
+	lcook->dirfd = fd;
+	return (true);
+}
+
 static int
 uclua_load_file(lcookie_t *lcook, FILE *f, const char *name)
 {

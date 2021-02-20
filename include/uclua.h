@@ -43,6 +43,7 @@ enum uclua_dump_type {
 };
 
 lcookie_t *uclua_new(void);
+bool uclua_set_sandbox(lcookie_t *, const char *);
 bool uclua_parse_file(lcookie_t *, FILE *);
 ucl_object_t *uclua_ucl(lcookie_t *);
 int uclua_dump(lcookie_t *, enum uclua_dump_type, FILE *);
