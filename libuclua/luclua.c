@@ -42,10 +42,13 @@
 
 typedef void lualib_modify_fn(lcookie_t *);
 
+static lualib_modify_fn	uclua_modify_base;
+
 static const struct uclua_lualib {
 	const luaL_Reg			 lib;
 	lualib_modify_fn		*modifier;
 } dflibs[] = {
+	{ .lib = {"_G", luaopen_base}, .modifier = uclua_modify_base },
 	/* { .lib = {LUA_LOADLIBNAME, luaopen_package} }, */
 	{ .lib = {LUA_COLIBNAME, luaopen_coroutine} },
 	{ .lib = {LUA_TABLIBNAME, luaopen_table} },
@@ -169,6 +172,24 @@ uclua_reset(lcookie_t *lcook)
 	uclua_ucl_free(lcook);
 }
 
+/*
+ * Clobber dofile and loadfile completely to reject loading arbitrary lua
+ * chunks.  The intention is to funnel all such requests through 'require'
+ * instead, which accepts just a name and imposes visibility restrictions.
+ */
+static void
+uclua_modify_base(lcookie_t *lcook)
+{
+	lua_State *L;
+
+	L = lcook->L;
+	lua_pushnil(L);
+	lua_setfield(L, -2, "dofile");
+
+	lua_pushnil(L);
+	lua_setfield(L, -2, "loadfile");
+}
+
 static void
 uclua_init_state(lcookie_t *lcook)
 {
@@ -177,14 +198,6 @@ uclua_init_state(lcookie_t *lcook)
 	lua_State *L;
 
 	L = lcook->L;
-	luaL_requiref(L, "_G", luaopen_base, 1);
-	lua_pushnil(L);
-	lua_setfield(L, -2, "dofile");
-
-	lua_pushnil(L);
-	lua_setfield(L, -2, "loadfile");
-	lua_pop(L, 1);
-
 	for (size_t i = 0; i < nitems(dflibs); ++i) {
 		libinfo = &dflibs[i];
 		lib = &libinfo->lib;
