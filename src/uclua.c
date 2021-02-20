@@ -41,19 +41,20 @@ enum {
 	YAML_OPT,
 };
 
-const char *optstr = "";
+const char *optstr = "o:";
 
 struct option longopts[] = {
 	{ "json",	no_argument,	NULL,	JSON_OPT },
 	{ "ucl",	no_argument,	NULL,	UCL_OPT },
 	{ "yaml",	no_argument,	NULL,	YAML_OPT },
+	{ "output",	required_argument,	NULL,	'o' },
 };
 
 static int
 usage(void)
 {
 
-	fprintf(stderr, "Usage: %s [--json | --ucl | --yaml] [file...] \n", getprogname());
+	fprintf(stderr, "Usage: %s [--json | --ucl | --yaml] [-o output] [file...] \n", getprogname());
 	return (1);
 }
 
@@ -88,13 +89,13 @@ main(int argc, char *argv[])
 {
 	lcookie_t *lcook;
 	FILE *cfg, *outf;
+	const char *outfile;
 	int ch, ret;
 	enum uclua_dump_type udump;
 
 	udump = UCLUAD_UCL;
-	outf = stdout;
-
-	while ((ch = getopt_long(argc, argv, "", longopts, NULL)) != -1) {
+	outfile = NULL;
+	while ((ch = getopt_long(argc, argv, optstr, longopts, NULL)) != -1) {
 		switch (ch) {
 		case JSON_OPT:
 			udump = UCLUAD_JSON;
@@ -104,6 +105,9 @@ main(int argc, char *argv[])
 			break;
 		case YAML_OPT:
 			udump = UCLUAD_YAML;
+			break;
+		case 'o':
+			outfile = optarg;
 			break;
 		default:
 			usage();
@@ -118,10 +122,22 @@ main(int argc, char *argv[])
 		return (usage());
 	}
 
+	if (outfile == NULL || strcmp(outfile, "-") == 0) {
+		outf = stdout;
+	} else {
+		outf = fopen(outfile, "w");
+		if (outf == NULL) {
+			fprintf(stderr, "could not open '%s' for output\n", outfile);
+			return (usage());
+		}
+	}
+
+
 	lcook = uclua_new();
 	if (lcook == NULL) {
 		fprintf(stderr, "out of memory\n");
-		return (1);
+		ret = 1;
+		goto out;
 	}
 
 	if (argc == 0) {
@@ -136,8 +152,12 @@ main(int argc, char *argv[])
 
 	if (ret == 0 && uclua_dump(lcook, udump, outf) != 0) {
 		fprintf(stderr, "Failed to dump!\n");
-		return (1);
+		ret = 1;
 	}
-	uclua_free(lcook);
-	return (0);
+out:
+	if (outf != stdout)
+		fclose(outf);
+	if (lcook != NULL)
+		uclua_free(lcook);
+	return (ret);
 }
