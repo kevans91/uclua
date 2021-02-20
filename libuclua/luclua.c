@@ -322,12 +322,10 @@ uclua_modify_load(lcookie_t *lcook)
 	lua_pushcclosure(L, uclua_searcher_preload, 1);
 	lua_rawseti(L, -2, 1);
 
-	if (lcook->dirfd != -1) {
-		lua_pushvalue(L, -2);
-		lua_pushlightuserdata(L, lcook);
-		lua_pushcclosure(L, uclua_searcher_dirfd, 2);
-		lua_rawseti(L, -2, 2);
-	}
+	lua_pushvalue(L, -2);
+	lua_pushlightuserdata(L, lcook);
+	lua_pushcclosure(L, uclua_searcher_dirfd, 2);
+	lua_rawseti(L, -2, 2);
 
 	lua_setfield(L, -2, "searchers");
 }
