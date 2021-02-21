@@ -114,12 +114,10 @@ uclua_dump(lcookie_t *lcook, enum uclua_dump_type dfmt, FILE *f)
 	free(emission);
 	if (nb < sb) {
 		/* ?? */
-		if (ferror(f) != 0) {
-			/* XXX */
-			return (serrno);
-		} else {
+		if (feof(f) != 0)
 			return (ENOSPC);
-		}
+		else
+			return (serrno);
 	}
 
 	return (0);
