@@ -40,6 +40,7 @@ enum uclua_dump_type {
 	UCLUAD_JSON = 0,
 	UCLUAD_UCL,
 	UCLUAD_YAML,
+	UCLUAD_LUA,
 };
 
 lcookie_t *uclua_new(void);

@@ -49,4 +49,6 @@ struct uclua_cookie {
 
 void uclua_ucl_free(lcookie_t *);
 
+int uclua_dump_lua(lcookie_t *, FILE *);
+
 #endif	/* _LUCLUA_INTERNAL_H */

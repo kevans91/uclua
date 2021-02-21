@@ -27,6 +27,7 @@
 
 #include <sys/param.h>
 
+#include <assert.h>
 #include <errno.h>
 
 #include "luclua_internal.h"
@@ -78,6 +79,9 @@ uclua_dump(lcookie_t *lcook, enum uclua_dump_type dfmt, FILE *f)
 	enum ucl_emitter emitter;
 	int serrno;
 
+	if (dfmt == UCLUAD_LUA)
+		return (uclua_dump_lua(lcook, f));
+
 	ucl = uclua_ucl(lcook);
 	if (ucl == NULL)
 		return (EINVAL);
@@ -91,6 +95,10 @@ uclua_dump(lcookie_t *lcook, enum uclua_dump_type dfmt, FILE *f)
 		break;
 	case UCLUAD_YAML:
 		emitter = UCL_EMIT_YAML;
+		break;
+	case UCLUAD_LUA:
+		/* UNREACHABLE */
+		assert(0);
 		break;
 	}
 
