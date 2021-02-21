@@ -37,6 +37,7 @@
 
 enum {
 	JSON_OPT = CHAR_MAX + 1,
+	LUA_OPT,
 	UCL_OPT,
 	YAML_OPT,
 };
@@ -45,6 +46,7 @@ const char *optstr = "o:s:";
 
 struct option longopts[] = {
 	{ "json",	no_argument,	NULL,	JSON_OPT },
+	{ "lua",	no_argument,	NULL,	LUA_OPT },
 	{ "ucl",	no_argument,	NULL,	UCL_OPT },
 	{ "yaml",	no_argument,	NULL,	YAML_OPT },
 	{ "output",	required_argument,	NULL,	'o' },
@@ -55,7 +57,7 @@ static int
 usage(void)
 {
 
-	fprintf(stderr, "Usage: %s [--json | --ucl | --yaml] "
+	fprintf(stderr, "Usage: %s [--json | --lua | --ucl | --yaml] "
 	    "[-o output] [-s sandbox] [file ...]\n", getprogname());
 	return (1);
 }
@@ -104,6 +106,9 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case JSON_OPT:
 			udump = UCLUAD_JSON;
+			break;
+		case LUA_OPT:
+			udump = UCLUAD_LUA;
 			break;
 		case UCL_OPT:
 			udump = UCLUAD_UCL;
