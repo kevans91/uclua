@@ -7,6 +7,9 @@ global:
 	uclua_dump;
 	uclua_reset;
 	uclua_free;
+
+	uclua_get_error;
+	uclua_error_string;
 local:
 	*;
 };

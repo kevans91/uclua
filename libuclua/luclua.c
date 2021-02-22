@@ -29,6 +29,7 @@
 
 #include <assert.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,8 +114,18 @@ uclua_set_sandbox(lcookie_t *lcook, const char *dirname)
 	int fd;
 
 	fd = open(dirname, O_DIRECTORY | O_SEARCH);
-	if (fd == -1)
-		return (false);
+	if (fd == -1) {
+		switch (errno) {
+		case ENOTDIR:
+			return (uclua_set_error(lcook, UCLUE_SANDBOX_NOTDIR));
+		case ENOENT:
+			return (uclua_set_error(lcook, UCLUE_SANDBOX_NOENT));
+		case EACCES:
+			return (uclua_set_error(lcook, UCLUE_SANDBOX_ACCES));
+		default:
+			return (uclua_set_error(lcook, UCLUE_SANDBOX_FAILURE));
+		}
+	}
 	if (lcook->dirfd != -1)
 		close(lcook->dirfd);
 	lcook->dirfd = fd;
@@ -136,10 +147,12 @@ uclua_load_file(lcookie_t *lcook, FILE *f, const char *name)
 	if (lerr != LUA_OK) {
 		lua_pushnil(L);
 		lua_pushvalue(L, -2);
+		(void)uclua_set_error(lcook, UCLUE_LUA_ERROR);
 		return (2);
 	} else if (fload.fload_error) {
 		lua_pushnil(L);
 		lua_pushstring(L, "i/o error");
+		(void)uclua_set_error(lcook, UCLUE_IO_ERROR);
 		return (2);
 	}
 
@@ -162,13 +175,16 @@ uclua_parse_file(lcookie_t *lcook, FILE *f)
 	assert(lerr > 0);
 	if (lua_isnil(L, 1)) {
 		assert(lerr > 1);
+		/* XXX Stuff lua errors into lcook. */
 		fprintf(stderr, "%s\n", luaL_tolstring(L, -1, NULL));
 		return (false);
 	}
 
 	lerr = lua_pcall(L, 0, 0, 0);
 	if (lerr != LUA_OK) {
-		printf("pcall error %s\n", luaL_checkstring(L, -1));
+		/* XXX Stuff lua errors into lcook. */
+		fprintf(stderr, "pcall error %s\n", luaL_checkstring(L, -1));
+		(void)uclua_set_error(lcook, UCLUE_LUA_ERROR);
 		return (false);
 	}
 

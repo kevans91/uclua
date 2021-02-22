@@ -43,6 +43,28 @@ typedef enum uclua_dump_type {
 	UCLUAD_LUA,
 } uclua_dump_type;
 
+typedef enum uclua_error {
+	UCLUE_OK = 0,
+	/* Sandbox-related errors */
+	UCLUE_SANDBOX_NOTDIR,	/* Specified sandbox is not a directory. */
+	UCLUE_SANDBOX_NOENT,	/* Sandbox directory does not exist. */
+	UCLUE_SANDBOX_ACCES,	/* Sandbox access denied. */
+	UCLUE_SANDBOX_FAILURE,	/* Failed to open sandbox directory. */
+	/* File loading */
+	UCLUE_LUA_ERROR,		/* Lua error encountered. (XXX) */
+	UCLUE_IO_ERROR,			/* I/O failure. */
+	/* Lua -> UCL errors */
+	UCLUE_NOTYPE,			/* No equivalent UCL type. */
+	UCLUE_BADKEYTYPE,		/* Bad key type. */
+	UCLUE_BADCONV,			/* Bad value conversion. */
+	UCLUE_MUTATE,			/* Error while mutating UCL object. */
+	UCLUE_NOMEM,			/* No memory. */
+	/* Dump errors */
+	UCLUE_DUMP_EMITFAIL,	/* Failed to emit requested type. */
+	UCLUE_DUMP_NOSPC,		/* No space left in requested file. */
+	UCLUE_DUMP_WRITEFAIL,	/* Generic failure to write to requested file. */
+} uclua_error;
+
 lcookie_t *uclua_new(void);
 bool uclua_set_sandbox(lcookie_t *, const char *);
 bool uclua_parse_file(lcookie_t *, FILE *);
@@ -50,5 +72,8 @@ ucl_object_t *uclua_ucl(lcookie_t *);
 int uclua_dump(lcookie_t *, uclua_dump_type, FILE *);
 void uclua_reset(lcookie_t *);
 void uclua_free(lcookie_t *);
+
+uclua_error uclua_get_error(lcookie_t *);
+const char *uclua_error_string(uclua_error);
 
 #endif	/* _INCL_UCLUA_H */

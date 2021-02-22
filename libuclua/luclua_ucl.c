@@ -32,7 +32,7 @@
 
 #include "luclua_internal.h"
 
-typedef ucl_object_t *(uclua_process_type_func)(lua_State *, int);
+typedef ucl_object_t *(uclua_process_type_func)(lcookie_t *, int);
 
 static uclua_process_type_func uclua_process_table;
 static uclua_process_type_func uclua_process_bool;
@@ -59,14 +59,14 @@ uclua_ucl(lcookie_t *lcook)
 
 	L = lcook->L;
 	lua_getfield(L, LUA_REGISTRYINDEX, LENV_IDX);
-	if ((obj = uclua_process_table(L, lua_gettop(L))) != NULL) {
+	if ((obj = uclua_process_table(lcook, lua_gettop(L))) != NULL) {
 		uclua_ucl_free(lcook);
 		lcook->dirty = false;
 		lcook->ucl = obj;
 		return (lcook->ucl);
 	}
 
-	/* XXX Error */
+	assert(lcook->error != UCLUE_OK);
 	return (NULL);
 }
 
@@ -104,7 +104,7 @@ uclua_dump(lcookie_t *lcook, uclua_dump_type dfmt, FILE *f)
 
 	emission = (char *)ucl_object_emit(ucl, emitter);
 	if (emission == NULL) {
-		/* XXX ERROR */
+		(void)uclua_set_error(lcook, UCLUE_DUMP_EMITFAIL);
 		return (EINVAL);
 	}
 
@@ -114,10 +114,22 @@ uclua_dump(lcookie_t *lcook, uclua_dump_type dfmt, FILE *f)
 	free(emission);
 	if (nb < sb) {
 		/* ?? */
-		if (feof(f) != 0)
+		if (feof(f) != 0) {
+			(void)uclua_set_error(lcook, UCLUE_DUMP_NOSPC);
 			return (ENOSPC);
-		else
+		} else {
+			switch (serrno) {
+			case EFBIG:
+			case EDQUOT:
+			case ENOSPC:
+				(void)uclua_set_error(lcook, UCLUE_DUMP_NOSPC);
+				break;
+			default:
+				(void)uclua_set_error(lcook, UCLUE_DUMP_WRITEFAIL);
+				break;
+			}
 			return (serrno);
+		}
 	}
 
 	return (0);
@@ -161,50 +173,53 @@ uclua_is_array(lua_State *L, int idx)
 }
 
 static ucl_object_t *
-uclua_process_table(lua_State *L, int idx)
+uclua_process_table(lcookie_t *lcook, int idx)
 {
+	lua_State *L;
 	const char *key;
 	uclua_process_type_func *processor;
 	ucl_object_t *obj, *val;
 	int ltype;
 	bool array;
 
+	L = lcook->L;
 	array = uclua_is_array(L, idx);
 	obj = ucl_object_typed_new(array ? UCL_ARRAY : UCL_OBJECT);
 	if (obj == NULL) {
-		/* XXX Error */
-		return (false);
+		(void)uclua_set_error(lcook, UCLUE_NOMEM);
+		return (NULL);
 	}
 
 	lua_pushnil(L);
 	while (lua_next(L, idx) != 0) {
 		ltype = lua_type(L, -2);
 		if (ltype != LUA_TSTRING && ltype != LUA_TNUMBER) {
-			/* XXX */
-			lua_pop(L, 1);
-			continue;
+			(void)uclua_set_error(lcook, UCLUE_BADKEYTYPE);
+			return (NULL);
 		}
 		key = luaL_tolstring(L, -2, NULL);
 		ltype = lua_type(L, -2);
 		if (ltype < 0 || ltype > nitems(uclua_processors)) {
-			goto next;
+			(void)uclua_set_error(lcook, UCLUE_NOTYPE);
+			return (NULL);
 		}
 
 		processor = uclua_processors[ltype];
 		if (processor != NULL) {
-			if ((val = (*processor)(L, lua_gettop(L) - 1)) == NULL) {
-				/* XXX Error */
-				goto next;
+			if ((val = (*processor)(lcook, lua_gettop(L) - 1)) == NULL) {
+				if (lcook->error == UCLUE_OK)
+					(void)uclua_set_error(lcook, UCLUE_BADCONV);
+				return (NULL);
 			}
 
 			if (array) {
 				if (!ucl_array_append(obj, val)) {
-					/* XXX Error */
-					goto next;
+					(void)uclua_set_error(lcook, UCLUE_MUTATE);
+					return (NULL);
 				}
 			} else if (!ucl_object_insert_key(obj, val, key, 0, true)) {
-				/* XXX Error */
-				goto next;
+				(void)uclua_set_error(lcook, UCLUE_MUTATE);
+				return (NULL);
 			}
 		}
 next:
@@ -215,32 +230,36 @@ next:
 }
 
 static ucl_object_t *
-uclua_process_bool(lua_State *L, int idx)
+uclua_process_bool(lcookie_t *lcook, int idx)
 {
 
-	return (ucl_object_frombool(lua_toboolean(L, idx)));
+	return (ucl_object_frombool(lua_toboolean(lcook->L, idx)));
 }
 
 static ucl_object_t *
-uclua_process_number(lua_State *L, int idx)
+uclua_process_number(lcookie_t *lcook, int idx)
 {
+	lua_State *L;
 
+	L = lcook->L;
 	if (lua_isinteger(L, idx))
 		return (ucl_object_fromint(lua_tointeger(L, idx)));
 #if LUA_FLOAT_TYPE == LUA_FLOAT_FLOAT || LUA_FLOAT_TYPE == LUA_FLOAT_DOUBLE
 	return (ucl_object_fromdouble((double)lua_tonumber(L, idx)));
 #else
-	/* XXX ERROR no LUA_FLOAT_LONGDOUBLE*/
+	(void)uclua_set_error(lcook, UCLUE_NOTYPE);
 	return (NULL);
 #endif
 }
 
 static ucl_object_t *
-uclua_process_string(lua_State *L, int idx)
+uclua_process_string(lcookie_t *lcook, int idx)
 {
+	lua_State *L;
 	const char *str;
 	ucl_object_t *obj;
 
+	L = lcook->L;
 	str = luaL_tolstring(L, idx, NULL);
 	obj = ucl_object_fromstring(str);
 	lua_pop(L, 1);

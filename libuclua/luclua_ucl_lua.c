@@ -38,6 +38,7 @@
 #define	uclua_padding(depth)	((depth) * 4)
 
 typedef struct {
+	lcookie_t *lcook;
 	FILE *f;
 	int depth;
 } uclua_dump_info;
@@ -55,6 +56,7 @@ uclua_dump_lua(lcookie_t *lcook, FILE *f)
 	if (ucl == NULL)
 		return (EINVAL);
 
+	info.lcook = lcook;
 	info.f = f;
 	info.depth = 0;
 	return (uclua_dump_object(ucl, true, &info));
@@ -72,6 +74,20 @@ uclua_emit_string(uclua_dump_info *info, const char *fmt, ...)
 	else
 		ret = 0;
 	va_end(ap);
+
+	if (ret == 0)
+		return (0);
+
+	switch (ret) {
+	case ENOSPC:
+	case EFBIG:
+	case EDQUOT:
+		(void)uclua_set_error(info->lcook, UCLUE_DUMP_NOSPC);
+		break;
+	default:
+		(void)uclua_set_error(info->lcook, UCLUE_DUMP_WRITEFAIL);
+		break;
+	}
 
 	return (ret);
 }
@@ -113,6 +129,7 @@ uclua_dump_object_value(const ucl_object_t *obj, uclua_dump_info *info)
 		break;
 	default:
 		/* Shouldn't happen, type was checked back in uclua_object_key. */
+		(void)uclua_set_error(info->lcook, UCLUE_NOTYPE);
 		ret = EINVAL;
 		break;
 	}
@@ -143,8 +160,9 @@ uclua_object_key(const ucl_object_t *obj)
 
 	assert(needed >= len);
 	buf = malloc(needed + 1);
-	if (buf == NULL)
+	if (buf == NULL) {
 		return (NULL);
+	}
 
 	buf[needed] = '\0';
 	for (size_t i = 0, j = 0; i < len; i++) {
@@ -180,8 +198,8 @@ uclua_dump_object(const ucl_object_t *obj, bool keys, uclua_dump_info *info)
 		case UCL_STRING:
 			break;
 		default:
-			fprintf(stderr, "Unknown ucl type %s\n", ucl_object_type_to_string(otype));
-			continue;
+			(void)uclua_set_error(info->lcook, UCLUE_NOTYPE);
+			return (EINVAL);
 		}
 
 		/* Emit the key + assignment operator */
@@ -191,6 +209,7 @@ uclua_dump_object(const ucl_object_t *obj, bool keys, uclua_dump_info *info)
 			uclkey = uclua_object_key(obj);
 			if (uclkey == NULL) {
 				ret = ENOMEM;
+				(void)uclua_set_error(info->lcook, UCLUE_NOMEM);
 			} else if (info->depth == 0) {
 				ret = uclua_emit_string(info, "%*s%s = ", uclua_padding(info->depth), "", uclkey);
 			} else {

@@ -25,38 +25,50 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LUCLUA_INTERNAL_H
-#define	_LUCLUA_INTERNAL_H
-
-#include <stdbool.h>
-
-#include <luaconf.h>
-#include <lua.h>
-#include <lauxlib.h>
-
-#include <ucl.h>
+#include <sys/param.h>
 
 #include <uclua.h>
+#include "luclua_internal.h"
 
-#define	LENV_IDX		"uclua_env"
+static const char *error2str[] = {
+	[UCLUE_OK]				= "No error",
 
-struct uclua_cookie {
-	lua_State *L;
-	ucl_object_t *ucl;
-	int dirfd;	/* sandboxed require */
-	uclua_error error;
-	bool dirty;
+	/* Sandbox errors. */
+	[UCLUE_SANDBOX_NOTDIR]	= "Specified sandbox is not a directory",
+	[UCLUE_SANDBOX_NOENT]	= "Specified sandbox does not exist",
+	[UCLUE_SANDBOX_ACCES]	= "Sandbox access denied",
+	[UCLUE_SANDBOX_FAILURE]	= "Failed to open sandbox directory",
+
+	/* File loading errors. */
+	[UCLUE_LUA_ERROR]	= "Lua error encountered",
+	[UCLUE_IO_ERROR]	= "I/O error",
+
+	/* Lua -> UCL errors. */
+	[UCLUE_NOTYPE]		= "No equivalent type",
+	[UCLUE_BADKEYTYPE]	= "Bad key type",
+	[UCLUE_BADCONV]		= "Bad value conversion",
+	[UCLUE_MUTATE]		= "Error while mutating UCL object/array",
+	[UCLUE_NOMEM]		= "Out of memory",
+
+	/* Dump errors. */
+	[UCLUE_DUMP_EMITFAIL]	= "Failed to emit requested type",
+	[UCLUE_DUMP_NOSPC]		= "No space left in requested file",
+	[UCLUE_DUMP_WRITEFAIL]	= "Generic failure to write to requested file",
 };
 
-void uclua_ucl_free(lcookie_t *);
-
-int uclua_dump_lua(lcookie_t *, FILE *);
-
-static inline int
-uclua_set_error(lcookie_t *lcook, uclua_error error)
+uclua_error
+uclua_get_error(lcookie_t *lcook)
 {
 
-	return (lcook->error = error);
+	return (lcook->error);
 }
 
-#endif	/* _LUCLUA_INTERNAL_H */
+const char *
+uclua_error_string(uclua_error error)
+{
+
+	if (error >= nitems(error2str))
+		return ("Unknown error");
+
+	return (error2str[error]);
+}
