@@ -11,3 +11,5 @@ uclua.debug
 uclua.full
 *.core
 *.gz
+*.lua
+*.sh
