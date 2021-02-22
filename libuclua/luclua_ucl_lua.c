@@ -95,7 +95,6 @@ uclua_emit_string(uclua_dump_info *info, const char *fmt, ...)
 static int
 uclua_dump_object_value(const ucl_object_t *obj, uclua_dump_info *info)
 {
-	const ucl_object_t *res;
 	int ret;
 	enum ucl_type otype;
 	bool keys;
@@ -153,6 +152,7 @@ uclua_object_key(const ucl_object_t *obj)
 		case '\\':
 		case '"':
 			needed++;
+			/* FALLTHROUGH */
 		default:
 			needed++;
 		}
@@ -170,6 +170,7 @@ uclua_object_key(const ucl_object_t *obj)
 		case '\\':
 		case '"':
 			buf[j++] = '\\';
+			/* FALLTHROUGH */
 		default:
 			buf[j++] = okey[i];
 		}

@@ -367,7 +367,7 @@ uclua_init_state(lcookie_t *lcook)
 }
 
 static const char *
-uclua_read_file(lua_State *L, void *data, size_t *size)
+uclua_read_file(lua_State *L __unused, void *data, size_t *size)
 {
 	struct uclua_floader *fload;
 	size_t nb;

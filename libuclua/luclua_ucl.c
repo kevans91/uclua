@@ -38,7 +38,6 @@ static uclua_process_type_func uclua_process_table;
 static uclua_process_type_func uclua_process_bool;
 static uclua_process_type_func uclua_process_number;
 static uclua_process_type_func uclua_process_string;
-static uclua_process_type_func uclua_process_table;
 
 static uclua_process_type_func *uclua_processors[] = {
 	[LUA_TBOOLEAN] = uclua_process_bool,
@@ -97,9 +96,9 @@ uclua_dump(lcookie_t *lcook, uclua_dump_type dfmt, FILE *f)
 		emitter = UCL_EMIT_YAML;
 		break;
 	case UCLUAD_LUA:
+	default:
 		/* UNREACHABLE */
-		assert(0);
-		break;
+		abort();
 	}
 
 	emission = (char *)ucl_object_emit(ucl, emitter);
@@ -199,7 +198,7 @@ uclua_process_table(lcookie_t *lcook, int idx)
 		}
 		key = luaL_tolstring(L, -2, NULL);
 		ltype = lua_type(L, -2);
-		if (ltype < 0 || ltype > nitems(uclua_processors)) {
+		if (ltype < 0 || (size_t)ltype > nitems(uclua_processors)) {
 			(void)uclua_set_error(lcook, UCLUE_NOTYPE);
 			return (NULL);
 		}
@@ -222,7 +221,7 @@ uclua_process_table(lcookie_t *lcook, int idx)
 				return (NULL);
 			}
 		}
-next:
+
 		lua_pop(L, 2);
 	}
 

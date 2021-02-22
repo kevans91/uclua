@@ -42,9 +42,9 @@ enum {
 	YAML_OPT,
 };
 
-const char *optstr = "o:s:";
+static const char *optstr = "o:s:";
 
-struct option longopts[] = {
+static struct option longopts[] = {
 	{ "json",	no_argument,	NULL,	JSON_OPT },
 	{ "lua",	no_argument,	NULL,	LUA_OPT },
 	{ "ucl",	no_argument,	NULL,	UCL_OPT },
@@ -92,7 +92,7 @@ int
 main(int argc, char *argv[])
 {
 	lcookie_t *lcook;
-	FILE *cfg, *outf;
+	FILE *outf;
 	const char *outfile, *sandbox;
 	char *cwd;
 	int ch, ret;
