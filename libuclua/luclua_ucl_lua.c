@@ -67,7 +67,7 @@ uclua_emit_string(uclua_dump_info *info, const char *fmt, ...)
 	int ret;
 
 	va_start(ap, fmt);
-	if ((ret = vfprintf(info->f, fmt, ap)) == -1)
+	if (vfprintf(info->f, fmt, ap) == -1)
 		ret = feof(info->f) ? ENOSPC : errno;
 	else
 		ret = 0;
@@ -85,7 +85,6 @@ uclua_dump_object_value(const ucl_object_t *obj, uclua_dump_info *info)
 	bool keys;
 
 	/* Toss up an error if we didn't handle it somehow. */
-	ret = EINVAL;
 	otype = ucl_object_type(obj);
 	switch (otype) {
 	case UCL_ARRAY:
@@ -113,8 +112,8 @@ uclua_dump_object_value(const ucl_object_t *obj, uclua_dump_info *info)
 		ret = uclua_emit_string(info, "[[%s]]", ucl_object_tostring(obj));
 		break;
 	default:
-		/* UNREACHABLE */
-		assert(0);
+		/* Shouldn't happen, type was checked back in uclua_object_key. */
+		ret = EINVAL;
 		break;
 	}
 

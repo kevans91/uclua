@@ -98,7 +98,6 @@ main(int argc, char *argv[])
 	int ch, ret;
 	enum uclua_dump_type udump;
 
-	ret = 0;
 	udump = UCLUAD_UCL;
 	cwd = NULL;
 	sandbox = outfile = NULL;
