@@ -71,7 +71,7 @@ uclua_ucl(lcookie_t *lcook)
 }
 
 int
-uclua_dump(lcookie_t *lcook, enum uclua_dump_type dfmt, FILE *f)
+uclua_dump(lcookie_t *lcook, uclua_dump_type dfmt, FILE *f)
 {
 	char *emission;
 	ucl_object_t *ucl;

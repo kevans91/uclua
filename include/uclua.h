@@ -36,18 +36,18 @@
 struct uclua_cookie;
 typedef struct uclua_cookie lcookie_t;
 
-enum uclua_dump_type {
+typedef enum uclua_dump_type {
 	UCLUAD_JSON = 0,
 	UCLUAD_UCL,
 	UCLUAD_YAML,
 	UCLUAD_LUA,
-};
+} uclua_dump_type;
 
 lcookie_t *uclua_new(void);
 bool uclua_set_sandbox(lcookie_t *, const char *);
 bool uclua_parse_file(lcookie_t *, FILE *);
 ucl_object_t *uclua_ucl(lcookie_t *);
-int uclua_dump(lcookie_t *, enum uclua_dump_type, FILE *);
+int uclua_dump(lcookie_t *, uclua_dump_type, FILE *);
 void uclua_reset(lcookie_t *);
 void uclua_free(lcookie_t *);
 

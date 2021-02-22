@@ -96,7 +96,7 @@ main(int argc, char *argv[])
 	const char *outfile, *sandbox;
 	char *cwd;
 	int ch, ret;
-	enum uclua_dump_type udump;
+	uclua_dump_type udump;
 
 	udump = UCLUAD_UCL;
 	cwd = NULL;
